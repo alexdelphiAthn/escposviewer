@@ -1,0 +1,23 @@
+# Delphi
+*.dcu
+*.exe
+*.res
+*.rsm
+*.map
+*.drc
+*.local
+*.identcache
+*.projdata
+*.tvsconfig
+*.stat
+*.dsk
+__history/
+__recovery/
+Win32/
+Win64/
+Debug/
+Release/
+
+# Salidas de la demo
+*.png
+!docs/*.png
