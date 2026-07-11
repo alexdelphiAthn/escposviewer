@@ -68,7 +68,7 @@ uses
 
 const
   // Comando, parámetros, descripción, plantilla que se inserta en el editor
-  AYUDA_COMANDOS: array[0..13, 0..3] of string = (
+  AYUDA_COMANDOS: array[0..14, 0..3] of string = (
     ('INICIALIZAR', '', 'Reinicia la impresora y activa español',
      'INICIALIZAR'),
     ('FUENTE', 'A / B / C', 'Fuente A(12x24) B(9x17) C(7x14)',
@@ -95,6 +95,8 @@ const
      'SALTAR 3'),
     ('QR', 'texto [| módulo [| L/M/Q/H]]', 'Imprime un código QR',
      'QR https://example.com | 8 | M'),
+    ('IMAGEN', 'ruta [| escala 1-8]', 'Rasteriza BMP/PNG/JPG a ESC/POS',
+     'IMAGEN C:\logo.bmp | 1'),
     ('CORTAR', '[PARCIAL]', 'Corta el papel',
      'CORTAR'));
   // CAJON se omite de la ayuda: no tiene efecto visual en el visor

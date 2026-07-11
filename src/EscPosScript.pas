@@ -21,6 +21,7 @@
 {    SEPARADOR [carácter]                                                      }
 {    SALTAR n                                                                  }
 {    QR texto [| módulo 1-16 [| nivel L|M|Q|H]]                                }
+{    IMAGEN ruta [| escala]   (BMP/PNG/JPG; se rasteriza a ESC/POS)            }
 {    CORTAR [PARCIAL]                                                          }
 {    CAJON                                                                     }
 {                                                                              }
@@ -62,6 +63,8 @@ type
                               ALinea: Integer);
     procedure ComandoQR(ATicket: TTicketTermico; const AResto: string;
                         ALinea: Integer);
+    procedure ComandoImagen(ATicket: TTicketTermico; const AResto: string;
+                            ALinea: Integer);
   public
     constructor Create;
     destructor Destroy; override;
@@ -73,6 +76,13 @@ type
   end;
 
 implementation
+
+uses
+  Winapi.Windows, System.Types, Vcl.Graphics,
+  Vcl.Imaging.PngImage, Vcl.Imaging.jpeg;
+
+const
+  ANCHO_PAPEL_PIXELS = 576; // Papel de 80 mm a 203 dpi
 
 constructor TEscPosScript.Create;
 begin
@@ -214,6 +224,71 @@ begin
   end;
 end;
 
+procedure TEscPosScript.ComandoImagen(ATicket: TTicketTermico;
+                                      const AResto: string; ALinea: Integer);
+var
+  Partes: TArray<string>;
+  sRuta: string;
+  iEscala: Integer;
+  iAnchoDestino: Integer;
+  iAltoDestino: Integer;
+  Picture: TPicture;
+  Bitmap: TBitmap;
+begin
+  Partes := AResto.Split(['|']);
+  sRuta := '';
+  if Length(Partes) >= 1 then
+    sRuta := Trim(Partes[0]);
+  if sRuta = '' then
+    AnotarError(ALinea, 'IMAGEN requiere una ruta de archivo')
+  else if not FileExists(sRuta) then
+    AnotarError(ALinea, 'No existe el archivo "' + sRuta + '"')
+  else
+  begin
+    iEscala := 1;
+    if Length(Partes) >= 2 then
+      iEscala := ParsearEntero(Partes[1], 1);
+    if iEscala < 1 then
+      iEscala := 1;
+    if iEscala > 8 then
+      iEscala := 8;
+    Picture := TPicture.Create;
+    Bitmap := TBitmap.Create;
+    try
+      try
+        // TPicture admite BMP, PNG, JPG... según las unidades registradas
+        Picture.LoadFromFile(sRuta);
+        iAnchoDestino := Picture.Width;
+        iAltoDestino := Picture.Height;
+        // Reducir si no cabe en el papel con la escala pedida
+        if iAnchoDestino * iEscala > ANCHO_PAPEL_PIXELS then
+        begin
+          iAnchoDestino := ANCHO_PAPEL_PIXELS div iEscala;
+          iAltoDestino := MulDiv(Picture.Height, iAnchoDestino,
+                                 Picture.Width);
+        end;
+        if iAltoDestino < 1 then
+          iAltoDestino := 1;
+        Bitmap.PixelFormat := pf24bit;
+        Bitmap.Width := iAnchoDestino;
+        Bitmap.Height := iAltoDestino;
+        Bitmap.Canvas.Brush.Color := clWhite;
+        Bitmap.Canvas.FillRect(Rect(0, 0, iAnchoDestino, iAltoDestino));
+        Bitmap.Canvas.StretchDraw(Rect(0, 0, iAnchoDestino, iAltoDestino),
+                                  Picture.Graphic);
+        ATicket.ImprimirImagen(Bitmap, iEscala);
+      except
+        on E: Exception do
+          AnotarError(ALinea, 'Error cargando imagen "' + sRuta + '": ' +
+                              E.Message);
+      end;
+    finally
+      FreeAndNil(Bitmap);
+      FreeAndNil(Picture);
+    end;
+  end;
+end;
+
 procedure TEscPosScript.EjecutarComando(ATicket: TTicketTermico;
                                         const AComando: string;
                                         const AResto: string; ALinea: Integer);
@@ -249,6 +324,8 @@ begin
     ATicket.SaltarLineas(ParsearEntero(AResto, 1))
   else if AComando = 'QR' then
     ComandoQR(ATicket, AResto, ALinea)
+  else if AComando = 'IMAGEN' then
+    ComandoImagen(ATicket, AResto, ALinea)
   else if AComando = 'CORTAR' then
     ATicket.CortarPapel(UpperCase(Trim(AResto)) = 'PARCIAL')
   else if AComando = 'CAJON' then

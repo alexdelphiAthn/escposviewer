@@ -137,6 +137,7 @@ CORTAR
 | `SEPARADOR` | carácter opcional (por defecto `-`) |
 | `SALTAR` | n líneas |
 | `QR` | texto `[\|` módulo `[\|` nivel L/M/Q/H`]]` |
+| `IMAGEN` | ruta `[\|` escala 1-8`]` — rasteriza BMP/PNG/JPG a `GS v 0`; se centra y se reduce si no cabe en el papel |
 | `CORTAR` | `PARCIAL` opcional |
 | `CAJON` | — |
 
