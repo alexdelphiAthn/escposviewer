@@ -1,65 +1,67 @@
-# Visor ESC/POS
+# ESC/POS Viewer
 
-Visor de comandos **ESC/POS** para Delphi (VCL): interpreta el flujo de bytes que se envía a una impresora térmica de tickets y lo convierte en imagen (`TBitmap` / PNG), sin necesidad de tener la impresora.
+**English** | [Español](README.es.md)
 
-Extraído del desarrollo real de un TPV en producción.
+**ESC/POS** command viewer for Delphi (VCL): it interprets the byte stream sent to a thermal receipt printer and turns it into an image (`TBitmap` / PNG) — no printer required.
 
-## Características
+Extracted from a real POS system in production.
 
-Interpreta los comandos ESC/POS más habituales de impresoras térmicas de 80 mm (203 dpi):
+## Features
 
-| Comando | Función |
+Interprets the most common ESC/POS commands of 80 mm thermal printers (203 dpi):
+
+| Command | Function |
 |---|---|
-| `ESC @` | Inicializar impresora |
-| `ESC M n` | Fuente A (12x24), B (9x17), C (7x14) |
-| `ESC E n` | Negrita |
-| `ESC - n` | Subrayado |
-| `ESC a n` | Alineación izquierda / centro / derecha |
-| `ESC d n` | Saltar n líneas |
-| `ESC i` | Corte de papel (se dibuja línea discontinua) |
-| `ESC p ...` | Apertura de cajón (se ignora) |
-| `ESC * ...` | Gráficos raster (línea) |
-| `GS ! n` | Tamaño de carácter (multiplicadores 1-8) |
-| `GS B n` | Modo inverso (blanco sobre negro) |
-| `GS v 0 ...` | Imagen raster completa |
-| `GS ( k ...` | Códigos QR nativos (modelo, módulo, nivel de error, datos) |
+| `ESC @` | Initialize printer |
+| `ESC M n` | Font A (12x24), B (9x17), C (7x14) |
+| `ESC E n` | Bold |
+| `ESC - n` | Underline |
+| `ESC a n` | Left / center / right alignment |
+| `ESC d n` | Feed n lines |
+| `ESC i` | Paper cut (drawn as a dashed line) |
+| `ESC p ...` | Open cash drawer (ignored) |
+| `ESC * ...` | Raster graphics (single line) |
+| `GS ! n` | Character size (multipliers 1-8) |
+| `GS B n` | Reverse mode (white on black) |
+| `GS v 0 ...` | Full raster image |
+| `GS ( k ...` | Native QR codes (model, module size, error level, data) |
 
-## Estructura
+## Structure
 
 ```
 visor_escpos/
 ├── src/
-│   ├── EscPosRenderer.pas   # ESC/POS → imagen (la unidad principal)
-│   ├── EscPosBuilder.pas    # Composición de tickets ESC/POS + envío RAW a impresora
-│   └── EscPosScript.pas     # Pseudocódigo → ESC/POS (compilador del mini-lenguaje)
+│   ├── EscPosRenderer.pas   # ESC/POS → image (the main unit)
+│   ├── EscPosBuilder.pas    # ESC/POS ticket composition + RAW printing
+│   └── EscPosScript.pas     # Pseudocode → ESC/POS (mini-language compiler)
 ├── lib/
-│   └── DelphiZXingQRCode.pas  # Generación de QR (port de ZXing, Apache 2.0)
+│   └── DelphiZXingQRCode.pas  # QR generation (ZXing port, Apache 2.0)
 ├── demo/
-│   ├── VisorEscPosDemo.dpr  # Proyecto de ejemplo
+│   ├── VisorEscPosDemo.dpr  # Sample project
 │   ├── FMainDemo.pas
 │   └── FMainDemo.dfm
-├── ejemplos/                # Ficheros ESC/POS de muestra (abrir desde la demo)
+├── ejemplos/                # Sample ESC/POS files (open them from the demo)
 └── tools/
-    └── generar_ejemplos.py  # Script que genera los ficheros de ejemplos/
+    └── generar_ejemplos.py  # Script that generates the files in ejemplos/
 ```
 
-## Ficheros de ejemplo
+## Sample files
 
-En `ejemplos/` hay tickets ESC/POS listos para abrir con el botón *Abrir archivo ESC/POS...* de la demo:
+`ejemplos/` contains ESC/POS tickets ready to open with the *Abrir archivo ESC/POS...* button of the demo:
 
-| Fichero | Muestra |
+| File | Shows |
 |---|---|
-| `01_cafeteria.escpos` | Ticket de bar: cabecera, columnas, total, QR |
-| `02_supermercado.escpos` | Ticket largo: cabecera inversa, desglose de IVA |
-| `03_estilos_texto.escpos` | Fuentes A/B/C, negrita, subrayado, inverso, tamaños |
-| `04_alineaciones.escpos` | Alineaciones, columnas, saltos y cortes múltiples |
-| `05_codigos_qr.escpos` | QR con distintos módulos, niveles de error y alineación |
-| `06_imagen_raster.escpos` | Imágenes raster `GS v 0` con alineación |
-| `07_entrada_concierto.escpos` | Entrada de evento: tamaños grandes, banda inversa, QR |
+| `01_cafeteria.escpos` | Coffee shop receipt: header, columns, total, QR |
+| `02_supermercado.escpos` | Long receipt: reverse header, VAT breakdown |
+| `03_estilos_texto.escpos` | Fonts A/B/C, bold, underline, reverse, sizes |
+| `04_alineaciones.escpos` | Alignments, columns, feeds and multiple cuts |
+| `05_codigos_qr.escpos` | QR with different module sizes, error levels and alignment |
+| `06_imagen_raster.escpos` | `GS v 0` raster images with alignment |
+| `07_entrada_concierto.escpos` | Event ticket: big sizes, reverse band, QR |
 
-Se regeneran con `python tools/generar_ejemplos.py`.
+Regenerate them with `python tools/generar_ejemplos.py`.
 
-## Uso rápido
+## Quick start
 
 ```pascal
 uses EscPosRenderer;
@@ -67,18 +69,18 @@ uses EscPosRenderer;
 var
   Renderer: TEscPosRenderer;
 begin
-  Renderer := TEscPosRenderer.Create; // 576 px de ancho = papel de 80 mm
+  Renderer := TEscPosRenderer.Create; // 576 px wide = 80 mm paper
   try
-    Renderer.Render(Comandos);        // string con los bytes ESC/POS
+    Renderer.Render(Comandos);        // string holding the ESC/POS bytes
     Renderer.GuardarPNG('ticket.png');
-    // o bien: Image1.Picture.Bitmap.Assign(Renderer.Bitmap);
+    // or: Image1.Picture.Bitmap.Assign(Renderer.Bitmap);
   finally
     Renderer.Free;
   end;
 end;
 ```
 
-Para generar comandos ESC/POS desde Delphi (y opcionalmente imprimirlos en una impresora real vía spooler RAW):
+To generate ESC/POS commands from Delphi (and optionally print them on a real printer via the RAW spooler):
 
 ```pascal
 uses EscPosBuilder;
@@ -86,60 +88,60 @@ uses EscPosBuilder;
 var
   Ticket: TTicketTermico;
 begin
-  Ticket := TTicketTermico.Create('Nombre impresora Windows');
+  Ticket := TTicketTermico.Create('Windows printer name');
   try
     Ticket.Inicializar;
     Ticket.Alinear(alCentro);
     Ticket.Negrita(True);
-    Ticket.EscribirLinea('MI TIENDA');
+    Ticket.EscribirLinea('MY STORE');
     Ticket.ImprimirQRNativo('https://example.com');
     Ticket.CortarPapel;
-    Ticket.Imprimir; // envío RAW a la impresora
-    // o: Comandos := Ticket.ObtenerComandos; // para el visor
+    Ticket.Imprimir; // RAW output to the printer
+    // or: Comandos := Ticket.ObtenerComandos; // for the viewer
   finally
     Ticket.Free;
   end;
 end;
 ```
 
-## Pseudocódigo (EscPosScript)
+## Pseudocode (EscPosScript)
 
-`EscPosScript.pas` compila un mini-lenguaje de texto plano a comandos ESC/POS, sin escribir Pascal. Cada comando corresponde a un método de `TTicketTermico`. Un comando por línea; `;` inicia comentario:
+`EscPosScript.pas` compiles a plain-text mini-language into ESC/POS commands, no Pascal required. Each command maps to a `TTicketTermico` method. One command per line; `;` starts a comment. Keywords are in Spanish:
 
 ```
-; Ticket mínimo
+; Minimal ticket
 INICIALIZAR
 ALINEAR CENTRO
 TAMANO 2 2
 NEGRITA ON
-LINEA MI TIENDA
+LINEA MY STORE
 TAMANO 1 1
 NEGRITA OFF
 ALINEAR IZQUIERDA
 SEPARADOR
-COLUMNAS 2 x Cafe con leche | 3,00
+COLUMNAS 2 x Coffee | 3,00
 COLUMNAS TOTAL | 3,00 EUR | 20
 QR https://example.com | 8 | M
 SALTAR 3
 CORTAR
 ```
 
-| Comando | Parámetros |
+| Command | Parameters |
 |---|---|
-| `INICIALIZAR` | — |
-| `FUENTE` | `A` / `B` / `C` |
-| `ALINEAR` | `IZQUIERDA` / `CENTRO` / `DERECHA` |
-| `NEGRITA`, `SUBRAYADO`, `INVERSO` | `ON` / `OFF` |
-| `TAMANO` | ancho alto (multiplicadores 1-8) |
-| `TEXTO` | texto sin salto de línea |
-| `LINEA` | texto con salto (vacío = línea en blanco) |
-| `COLUMNAS` | izquierda `\|` derecha `[\|` ancho`]` |
-| `SEPARADOR` | carácter opcional (por defecto `-`) |
-| `SALTAR` | n líneas |
-| `QR` | texto `[\|` módulo `[\|` nivel L/M/Q/H`]]` |
-| `IMAGEN` | ruta `[\|` escala 1-8`]` — rasteriza BMP/PNG/JPG a `GS v 0`; se centra y se reduce si no cabe en el papel |
-| `CORTAR` | `PARCIAL` opcional |
-| `CAJON` | — |
+| `INICIALIZAR` | — (initialize) |
+| `FUENTE` | `A` / `B` / `C` (font) |
+| `ALINEAR` | `IZQUIERDA` / `CENTRO` / `DERECHA` (align left/center/right) |
+| `NEGRITA`, `SUBRAYADO`, `INVERSO` | `ON` / `OFF` (bold, underline, reverse) |
+| `TAMANO` | width height (size multipliers 1-8) |
+| `TEXTO` | text without line break |
+| `LINEA` | text with line break (empty = blank line) |
+| `COLUMNAS` | left `\|` right `[\|` width`]` (two-column line) |
+| `SEPARADOR` | optional character (default `-`) (separator line) |
+| `SALTAR` | n lines (feed) |
+| `QR` | text `[\|` module `[\|` level L/M/Q/H`]]` |
+| `IMAGEN` | path `[\|` scale 1-8`]` — rasterizes BMP/PNG/JPG to `GS v 0`; centered and shrunk to fit the paper |
+| `CORTAR` | optional `PARCIAL` (cut / partial cut) |
+| `CAJON` | — (open drawer) |
 
 ```pascal
 uses EscPosScript;
@@ -148,7 +150,7 @@ Script := TEscPosScript.Create;
 try
   Comandos := Script.Compilar(Memo.Lines.Text);
   if Script.Errores.Count > 0 then
-    ShowMessage(Script.Errores.Text); // errores con número de línea
+    ShowMessage(Script.Errores.Text); // errors with line numbers
 finally
   Script.Free;
 end;
@@ -156,24 +158,25 @@ end;
 
 ## Demo
 
-Abrir `demo/VisorEscPosDemo.dpr` en Delphi (el IDE genera el `.dproj` automáticamente) y compilar. La demo:
+Open `demo/VisorEscPosDemo.dpr` in Delphi (the IDE generates the `.dproj` automatically) and build. The demo:
 
-1. Incluye un editor de pseudocódigo con vista previa y una columna de ayuda con todos los comandos: arrastre un comando al editor (o haga doble clic) para insertarlo, y pulse *Renderizar script*.
-2. Genera un ticket de ejemplo por código (cabecera, columnas, total, QR y corte).
-3. Permite abrir un archivo con comandos ESC/POS crudos (`.bin`, `.prn`, capturas del spooler...).
-4. Guarda el resultado como PNG.
+1. Includes a pseudocode editor with live preview and a help column listing every command: drag a command onto the editor (or double-click) to insert it, then press *Renderizar script*.
+2. Generates a sample ticket in code (header, columns, total, QR and cut).
+3. Opens files with raw ESC/POS commands (`.bin`, `.prn`, spooler captures...).
+4. Saves the result as PNG.
 
-## Requisitos
+## Requirements
 
-- Delphi 10.3 Rio o superior (usa declaraciones `var` inline). VCL, Windows.
-- Sin dependencias externas: la única librería de terceros (generación de QR) está incluida.
+- Delphi 10.3 Rio or later (uses inline `var` declarations). VCL, Windows.
+- No external dependencies: the only third-party library (QR generation) is included.
 
-## Notas técnicas
+## Technical notes
 
-- Los comandos se manejan como `string` donde cada carácter representa un byte (`Char(Ord(b))`). Al leer archivos, convertir byte a byte; no usar conversiones de codificación.
-- El texto se dibuja con una fuente monoespaciada (Consolas por defecto, configurable con `NombreFuente`) sin suavizado, para imitar el aspecto de la impresora térmica.
-- `EnviarComandoRAW` codifica el texto a CP858 (español) y preserva los bytes binarios de los comandos QR.
+- Commands are handled as a `string` where each character represents one byte (`Char(Ord(b))`). When reading files, convert byte by byte; do not apply encoding conversions.
+- Text is drawn with a monospaced font (Consolas by default, configurable via `NombreFuente`) without antialiasing, to mimic the look of a thermal printer.
+- `EnviarComandoRAW` encodes text as CP858 (Spanish code page) while preserving the binary bytes of QR commands.
+- Identifiers and API names are in Spanish, as the library originates from a Spanish POS project.
 
-## Licencia
+## License
 
-MIT (ver [LICENSE](LICENSE)). `DelphiZXingQRCode.pas` es un port de ZXing por Debenu Pty Ltd, bajo licencia Apache 2.0 (ver cabecera del archivo).
+MIT (see [LICENSE](LICENSE)). `DelphiZXingQRCode.pas` is a ZXing port by Debenu Pty Ltd, under the Apache 2.0 license (see the file header).
