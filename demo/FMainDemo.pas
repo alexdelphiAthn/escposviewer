@@ -17,14 +17,22 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls,
-  Vcl.StdCtrls, EscPosRenderer, EscPosBuilder;
+  Vcl.StdCtrls, Vcl.ComCtrls, EscPosRenderer, EscPosBuilder, EscPosScript;
 
 type
   TFormDemo = class(TForm)
     Panel1: TPanel;
     btnGenerar: TButton;
     btnAbrir: TButton;
+    btnScript: TButton;
     btnPNG: TButton;
+    pnlAyuda: TPanel;
+    lblAyuda: TLabel;
+    lvComandos: TListView;
+    SplitterAyuda: TSplitter;
+    pnlEditor: TPanel;
+    MemoScript: TMemo;
+    Splitter1: TSplitter;
     ScrollBox1: TScrollBox;
     Image1: TImage;
     SaveDialog1: TSaveDialog;
@@ -32,11 +40,19 @@ type
     procedure FormCreate(Sender: TObject);
     procedure btnGenerarClick(Sender: TObject);
     procedure btnAbrirClick(Sender: TObject);
+    procedure btnScriptClick(Sender: TObject);
     procedure btnPNGClick(Sender: TObject);
+    procedure lvComandosDblClick(Sender: TObject);
+    procedure MemoScriptDragOver(Sender, Source: TObject; X, Y: Integer;
+      State: TDragState; var Accept: Boolean);
+    procedure MemoScriptDragDrop(Sender, Source: TObject; X, Y: Integer);
   private
     FRenderer: TEscPosRenderer;
     function GenerarTicketEjemplo: string;
     procedure MostrarComandos(const AComandos: string);
+    procedure CargarScriptEjemplo;
+    procedure CargarAyudaComandos;
+    procedure InsertarPlantilla(ALinea: Integer);
   public
   end;
 
@@ -50,10 +66,154 @@ implementation
 uses
   System.IOUtils;
 
+const
+  // Comando, parámetros, descripción, plantilla que se inserta en el editor
+  AYUDA_COMANDOS: array[0..13, 0..3] of string = (
+    ('INICIALIZAR', '', 'Reinicia la impresora y activa español',
+     'INICIALIZAR'),
+    ('FUENTE', 'A / B / C', 'Fuente A(12x24) B(9x17) C(7x14)',
+     'FUENTE A'),
+    ('ALINEAR', 'IZQUIERDA / CENTRO / DERECHA', 'Alineación del texto',
+     'ALINEAR CENTRO'),
+    ('NEGRITA', 'ON / OFF', 'Activa o desactiva la negrita',
+     'NEGRITA ON'),
+    ('SUBRAYADO', 'ON / OFF', 'Activa o desactiva el subrayado',
+     'SUBRAYADO ON'),
+    ('INVERSO', 'ON / OFF', 'Texto blanco sobre fondo negro',
+     'INVERSO ON'),
+    ('TAMANO', 'ancho alto (1-8)', 'Multiplicadores de tamaño de letra',
+     'TAMANO 2 2'),
+    ('TEXTO', 'texto...', 'Escribe texto sin salto de línea',
+     'TEXTO Hola'),
+    ('LINEA', 'texto...', 'Escribe una línea (vacío = línea en blanco)',
+     'LINEA Hola mundo'),
+    ('COLUMNAS', 'izq | der [| ancho]', 'Texto a izquierda y derecha',
+     'COLUMNAS Concepto | 1,00'),
+    ('SEPARADOR', '[carácter]', 'Línea separadora (por defecto -)',
+     'SEPARADOR'),
+    ('SALTAR', 'n', 'Salta n líneas en blanco',
+     'SALTAR 3'),
+    ('QR', 'texto [| módulo [| L/M/Q/H]]', 'Imprime un código QR',
+     'QR https://example.com | 8 | M'),
+    ('CORTAR', '[PARCIAL]', 'Corta el papel',
+     'CORTAR'));
+  // CAJON se omite de la ayuda: no tiene efecto visual en el visor
+
 procedure TFormDemo.FormCreate(Sender: TObject);
 begin
   FRenderer := TEscPosRenderer.Create; // 576 px = papel de 80 mm
-  btnGenerarClick(nil);
+  CargarAyudaComandos;
+  CargarScriptEjemplo;
+  btnScriptClick(nil);
+end;
+
+procedure TFormDemo.CargarAyudaComandos;
+var
+  i: Integer;
+  Item: TListItem;
+begin
+  lvComandos.Items.BeginUpdate;
+  try
+    lvComandos.Items.Clear;
+    for i := Low(AYUDA_COMANDOS) to High(AYUDA_COMANDOS) do
+    begin
+      Item := lvComandos.Items.Add;
+      Item.Caption := AYUDA_COMANDOS[i, 0];
+      Item.SubItems.Add(AYUDA_COMANDOS[i, 1]);
+      Item.SubItems.Add(AYUDA_COMANDOS[i, 2]);
+    end;
+  finally
+    lvComandos.Items.EndUpdate;
+  end;
+end;
+
+procedure TFormDemo.InsertarPlantilla(ALinea: Integer);
+begin
+  if lvComandos.ItemIndex >= 0 then
+  begin
+    if (ALinea < 0) or (ALinea > MemoScript.Lines.Count) then
+      ALinea := MemoScript.Lines.Count;
+    MemoScript.Lines.Insert(ALinea,
+                            AYUDA_COMANDOS[lvComandos.ItemIndex, 3]);
+    // Situar el cursor en la línea insertada
+    MemoScript.CaretPos := TPoint.Create(0, ALinea);
+    MemoScript.SetFocus;
+  end;
+end;
+
+procedure TFormDemo.lvComandosDblClick(Sender: TObject);
+begin
+  // Doble clic: insertar después de la línea del cursor
+  InsertarPlantilla(MemoScript.CaretPos.Y + 1);
+end;
+
+procedure TFormDemo.MemoScriptDragOver(Sender, Source: TObject;
+  X, Y: Integer; State: TDragState; var Accept: Boolean);
+begin
+  Accept := Source = lvComandos;
+end;
+
+procedure TFormDemo.MemoScriptDragDrop(Sender, Source: TObject;
+  X, Y: Integer);
+var
+  iRes: Integer;
+  iLinea: Integer;
+begin
+  // Averiguar sobre qué línea se ha soltado
+  iRes := MemoScript.Perform(EM_CHARFROMPOS, 0, MakeLParam(X, Y));
+  if iRes = -1 then
+    iLinea := MemoScript.Lines.Count
+  else
+    iLinea := HiWord(iRes);
+  InsertarPlantilla(iLinea);
+end;
+
+procedure TFormDemo.CargarScriptEjemplo;
+begin
+  MemoScript.Lines.Clear;
+  MemoScript.Lines.Add('; Pseudocodigo ESC/POS - un comando por linea');
+  MemoScript.Lines.Add('; Pulse "Renderizar script" para ver el resultado');
+  MemoScript.Lines.Add('INICIALIZAR');
+  MemoScript.Lines.Add('ALINEAR CENTRO');
+  MemoScript.Lines.Add('TAMANO 2 2');
+  MemoScript.Lines.Add('NEGRITA ON');
+  MemoScript.Lines.Add('LINEA MI TIENDA');
+  MemoScript.Lines.Add('TAMANO 1 1');
+  MemoScript.Lines.Add('NEGRITA OFF');
+  MemoScript.Lines.Add('LINEA C/ Ejemplo 123 - Madrid');
+  MemoScript.Lines.Add('ALINEAR IZQUIERDA');
+  MemoScript.Lines.Add('SEPARADOR');
+  MemoScript.Lines.Add('COLUMNAS 2 x Cafe con leche | 3,00');
+  MemoScript.Lines.Add('COLUMNAS 1 x Tostada con tomate | 2,50');
+  MemoScript.Lines.Add('SEPARADOR');
+  MemoScript.Lines.Add('NEGRITA ON');
+  MemoScript.Lines.Add('TAMANO 1 2');
+  MemoScript.Lines.Add('COLUMNAS TOTAL | 5,50 EUR | 20');
+  MemoScript.Lines.Add('TAMANO 1 1');
+  MemoScript.Lines.Add('NEGRITA OFF');
+  MemoScript.Lines.Add('SEPARADOR');
+  MemoScript.Lines.Add('ALINEAR CENTRO');
+  MemoScript.Lines.Add('QR https://example.com | 8 | M');
+  MemoScript.Lines.Add('SUBRAYADO ON');
+  MemoScript.Lines.Add('LINEA Gracias por su visita');
+  MemoScript.Lines.Add('SUBRAYADO OFF');
+  MemoScript.Lines.Add('SALTAR 3');
+  MemoScript.Lines.Add('CORTAR');
+end;
+
+procedure TFormDemo.btnScriptClick(Sender: TObject);
+var
+  Script: TEscPosScript;
+begin
+  Script := TEscPosScript.Create;
+  try
+    MostrarComandos(Script.Compilar(MemoScript.Lines.Text));
+    if Script.Errores.Count > 0 then
+      ShowMessage('Errores en el script:' + sLineBreak +
+                  Script.Errores.Text);
+  finally
+    FreeAndNil(Script);
+  end;
 end;
 
 function TFormDemo.GenerarTicketEjemplo: string;
@@ -81,7 +241,8 @@ begin
     Ticket.LineaSeparadora;
     Ticket.Negrita(True);
     Ticket.TamanoDoble(False, True);
-    Ticket.TextoColumnas('TOTAL', '8,70 EUR');
+    // A doble alto la fuente es mayor: reducir el ancho de columnas
+    Ticket.TextoColumnas('TOTAL', '8,70 EUR', 20);
     Ticket.TamanoDoble(False, False);
     Ticket.Negrita(False);
     Ticket.LineaSeparadora;

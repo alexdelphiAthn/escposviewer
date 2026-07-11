@@ -30,14 +30,34 @@ Interpreta los comandos ESC/POS más habituales de impresoras térmicas de 80 mm
 visor_escpos/
 ├── src/
 │   ├── EscPosRenderer.pas   # ESC/POS → imagen (la unidad principal)
-│   └── EscPosBuilder.pas    # Composición de tickets ESC/POS + envío RAW a impresora
+│   ├── EscPosBuilder.pas    # Composición de tickets ESC/POS + envío RAW a impresora
+│   └── EscPosScript.pas     # Pseudocódigo → ESC/POS (compilador del mini-lenguaje)
 ├── lib/
 │   └── DelphiZXingQRCode.pas  # Generación de QR (port de ZXing, Apache 2.0)
-└── demo/
-    ├── VisorEscPosDemo.dpr  # Proyecto de ejemplo
-    ├── FMainDemo.pas
-    └── FMainDemo.dfm
+├── demo/
+│   ├── VisorEscPosDemo.dpr  # Proyecto de ejemplo
+│   ├── FMainDemo.pas
+│   └── FMainDemo.dfm
+├── ejemplos/                # Ficheros ESC/POS de muestra (abrir desde la demo)
+└── tools/
+    └── generar_ejemplos.py  # Script que genera los ficheros de ejemplos/
 ```
+
+## Ficheros de ejemplo
+
+En `ejemplos/` hay tickets ESC/POS listos para abrir con el botón *Abrir archivo ESC/POS...* de la demo:
+
+| Fichero | Muestra |
+|---|---|
+| `01_cafeteria.escpos` | Ticket de bar: cabecera, columnas, total, QR |
+| `02_supermercado.escpos` | Ticket largo: cabecera inversa, desglose de IVA |
+| `03_estilos_texto.escpos` | Fuentes A/B/C, negrita, subrayado, inverso, tamaños |
+| `04_alineaciones.escpos` | Alineaciones, columnas, saltos y cortes múltiples |
+| `05_codigos_qr.escpos` | QR con distintos módulos, niveles de error y alineación |
+| `06_imagen_raster.escpos` | Imágenes raster `GS v 0` con alineación |
+| `07_entrada_concierto.escpos` | Entrada de evento: tamaños grandes, banda inversa, QR |
+
+Se regeneran con `python tools/generar_ejemplos.py`.
 
 ## Uso rápido
 
@@ -82,13 +102,65 @@ begin
 end;
 ```
 
+## Pseudocódigo (EscPosScript)
+
+`EscPosScript.pas` compila un mini-lenguaje de texto plano a comandos ESC/POS, sin escribir Pascal. Cada comando corresponde a un método de `TTicketTermico`. Un comando por línea; `;` inicia comentario:
+
+```
+; Ticket mínimo
+INICIALIZAR
+ALINEAR CENTRO
+TAMANO 2 2
+NEGRITA ON
+LINEA MI TIENDA
+TAMANO 1 1
+NEGRITA OFF
+ALINEAR IZQUIERDA
+SEPARADOR
+COLUMNAS 2 x Cafe con leche | 3,00
+COLUMNAS TOTAL | 3,00 EUR | 20
+QR https://example.com | 8 | M
+SALTAR 3
+CORTAR
+```
+
+| Comando | Parámetros |
+|---|---|
+| `INICIALIZAR` | — |
+| `FUENTE` | `A` / `B` / `C` |
+| `ALINEAR` | `IZQUIERDA` / `CENTRO` / `DERECHA` |
+| `NEGRITA`, `SUBRAYADO`, `INVERSO` | `ON` / `OFF` |
+| `TAMANO` | ancho alto (multiplicadores 1-8) |
+| `TEXTO` | texto sin salto de línea |
+| `LINEA` | texto con salto (vacío = línea en blanco) |
+| `COLUMNAS` | izquierda `\|` derecha `[\|` ancho`]` |
+| `SEPARADOR` | carácter opcional (por defecto `-`) |
+| `SALTAR` | n líneas |
+| `QR` | texto `[\|` módulo `[\|` nivel L/M/Q/H`]]` |
+| `CORTAR` | `PARCIAL` opcional |
+| `CAJON` | — |
+
+```pascal
+uses EscPosScript;
+
+Script := TEscPosScript.Create;
+try
+  Comandos := Script.Compilar(Memo.Lines.Text);
+  if Script.Errores.Count > 0 then
+    ShowMessage(Script.Errores.Text); // errores con número de línea
+finally
+  Script.Free;
+end;
+```
+
 ## Demo
 
 Abrir `demo/VisorEscPosDemo.dpr` en Delphi (el IDE genera el `.dproj` automáticamente) y compilar. La demo:
 
-1. Genera un ticket de ejemplo (cabecera, columnas, total, QR y corte) y lo muestra en pantalla.
-2. Permite abrir un archivo con comandos ESC/POS crudos (`.bin`, `.prn`, capturas del spooler...).
-3. Guarda el resultado como PNG.
+1. Incluye un editor de pseudocódigo con vista previa y una columna de ayuda con todos los comandos: arrastre un comando al editor (o haga doble clic) para insertarlo, y pulse *Renderizar script*.
+2. Genera un ticket de ejemplo por código (cabecera, columnas, total, QR y corte).
+3. Permite abrir un archivo con comandos ESC/POS crudos (`.bin`, `.prn`, capturas del spooler...).
+4. Guarda el resultado como PNG.
 
 ## Requisitos
 

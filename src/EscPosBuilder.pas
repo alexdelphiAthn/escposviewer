@@ -45,6 +45,8 @@ type
     procedure Negrita(AActivar: Boolean);
     procedure Subrayado(AActivar: Boolean);
     procedure TamanoDoble(AAncho, AAlto: Boolean);
+    procedure Tamano(AAncho, AAlto: Integer); // multiplicadores 1-8
+    procedure Inverso(AActivar: Boolean);
     procedure EscribirLinea(const ATexto: string);
     procedure EscribirTexto(const ATexto: string);
     procedure SaltarLineas(ACantidad: Integer);
@@ -184,6 +186,27 @@ begin
   if AAlto then
     Valor := Valor or $10;
   FComandos.Append(GS + '!' + Chr(Valor));
+end;
+
+procedure TTicketTermico.Tamano(AAncho, AAlto: Integer);
+begin
+  if AAncho < 1 then
+    AAncho := 1;
+  if AAncho > 8 then
+    AAncho := 8;
+  if AAlto < 1 then
+    AAlto := 1;
+  if AAlto > 8 then
+    AAlto := 8;
+  FComandos.Append(GS + '!' + Chr((AAncho - 1) or ((AAlto - 1) shl 4)));
+end;
+
+procedure TTicketTermico.Inverso(AActivar: Boolean);
+begin
+  if AActivar then
+    FComandos.Append(GS + 'B' + #1)
+  else
+    FComandos.Append(GS + 'B' + #0);
 end;
 
 procedure TTicketTermico.EscribirLinea(const ATexto: string);
